@@ -40,17 +40,24 @@ In this section you will start your [Google Cloud Shell](https://cloud.google.co
 1. When the shell is open, set your default compute zone:
 
   ```shell
-  $ gcloud config set compute/zone us-east1-d
+  gcloud config set compute/zone us-east1-d
   ```
 
 1. Clone the lab repository in your cloud shell, then `cd` into that dir:
 
   ```shell
-  $ git clone https://github.com/GoogleCloudPlatform/continuous-deployment-on-kubernetes.git
+  git clone https://github.com/GoogleCloudPlatform/continuous-deployment-on-kubernetes.git
+  ```
+
+  Output (do not copy):
+
+  ```output
   Cloning into 'continuous-deployment-on-kubernetes'...
   ...
+  ```
 
-  $ cd continuous-deployment-on-kubernetes
+  ```shell
+  cd continuous-deployment-on-kubernetes
   ```
 
 ## Create a Kubernetes Cluster
@@ -60,12 +67,17 @@ You'll use Google Container Engine to create and manage your Kubernetes cluster.
 gcloud container clusters create jenkins-cd \
 --num-nodes 2 \
 --machine-type n1-standard-2 \
---scopes "https://www.googleapis.com/auth/projecthosting,cloud-platform"
+--scopes "cloud-source-repos-ro,cloud-platform"
 ```
 
 Once that operation completes download the credentials for your cluster using the [gcloud CLI](https://cloud.google.com/sdk/):
 ```shell
-$ gcloud container clusters get-credentials jenkins-cd
+gcloud container clusters get-credentials jenkins-cd
+```
+
+Output (do not copy):
+
+```output
 Fetching cluster endpoint and auth data.
 kubeconfig entry generated for jenkins-cd.
 ```
@@ -73,10 +85,16 @@ kubeconfig entry generated for jenkins-cd.
 Confirm that the cluster is running and `kubectl` is working by listing pods:
 
 ```shell
-$ kubectl get pods
+kubectl get pods
+```
+
+Output (do not copy):
+
+```output
 No resources found.
 ```
-You should see `No resources found.`.
+
+You should see `No resources found.`
 
 ## Install Helm
 
@@ -96,29 +114,74 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
     ```
 
 1. Add yourself as a cluster administrator in the cluster's RBAC so that you can give Jenkins permissions in the cluster:
-    
+
     ```shell
     kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value account)
     ```
+
+    Output (do not copy):
+
+    ```output
+    clusterrolebinding.rbac.authorization.k8s.io/cluster-admin-binding created
+    ```
+
 
 1. Grant Tiller, the server side of Helm, the cluster-admin role in your cluster:
 
     ```shell
     kubectl create serviceaccount tiller --namespace kube-system
+    ```
+
+    Output (do not copy):
+
+    ```output
+    serviceaccount/tiller created
+    ```
+
+    ```shell
     kubectl create clusterrolebinding tiller-admin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+    ```
+
+    Output (do not copy):
+
+    ```output
+    clusterrolebinding.rbac.authorization.k8s.io/tiller-admin-binding created
     ```
 
 1. Initialize Helm. This ensures that the server side of Helm (Tiller) is properly installed in your cluster.
 
     ```shell
     ./helm init --service-account=tiller
-    ./helm update
+    ```
+
+    Output (do not copy):
+
+    ```output
+    Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
+    ```
+
+    ```shell
+    ./helm repo update
+    ```
+
+    Output (do not copy):
+
+    ```output
+    Hang tight while we grab the latest from your chart repositories...
+    ...Skip local chart repository
+    ...Successfully got an update from the "stable" chart repository
+    Update Complete.
     ```
 
 1. Ensure Helm is properly installed by running the following command. You should see versions appear for both the server and the client of ```v2.14.1```:
 
     ```shell
     ./helm version
+    ```
+
+    Output (do not copy):
+
+    ```output
     Client: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
     Server: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
     ```
@@ -135,15 +198,25 @@ You will use a custom [values file](https://github.com/kubernetes/helm/blob/mast
 1. Once that command completes ensure the Jenkins pod goes to the `Running` state and the container is in the `READY` state:
 
     ```shell
-    $ kubectl get pods
+    kubectl get pods
+    ```
+
+    Output (do not copy):
+
+    ```output
     NAME                          READY     STATUS    RESTARTS   AGE
     cd-jenkins-7c786475dd-vbhg4   1/1       Running   0          1m
     ```
-    
-1. Configure the Jenkins service account to be able to deploy to the cluster. 
+
+1. Configure the Jenkins service account to be able to deploy to the cluster.
 
     ```shell
-    $ kubectl create clusterrolebinding jenkins-deploy --clusterrole=cluster-admin --serviceaccount=default:cd-jenkins
+    kubectl create clusterrolebinding jenkins-deploy --clusterrole=cluster-admin --serviceaccount=default:cd-jenkins
+    ```
+
+    Output (do not copy):
+
+    ```output
     clusterrolebinding.rbac.authorization.k8s.io/jenkins-deploy created
     ```
 
@@ -157,7 +230,12 @@ You will use a custom [values file](https://github.com/kubernetes/helm/blob/mast
 1. Now, check that the Jenkins Service was created properly:
 
     ```shell
-    $ kubectl get svc
+    kubectl get svc
+    ```
+
+    Output (do not copy):
+
+    ```output
     NAME               CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
     cd-jenkins         10.35.249.67   <none>        8080/TCP    3h
     cd-jenkins-agent   10.35.248.1    <none>        50000/TCP   3h
@@ -227,47 +305,95 @@ You'll have two primary environments - [canary](http://martinfowler.com/bliki/Ca
 
 > **Note**: The manifest files for this section of the tutorial are in `sample-app/k8s`. You are encouraged to open and read each one before creating it per the instructions.
 
-1. First change directories to the sample-app:
+1. First change directories to the sample-app, back in __Cloud Shell__:
 
   ```shell
-  $ cd sample-app
+  cd sample-app
   ```
 
 1. Create the namespace for production:
 
   ```shell
-  $ kubectl create ns production
+  kubectl create ns production
+  ```
+
+  Output (do not copy):
+
+  ```output
+  namespace/production created
   ```
 
 1. Create the canary and production Deployments and Services:
 
     ```shell
-    $ kubectl --namespace=production apply -f k8s/production
-    $ kubectl --namespace=production apply -f k8s/canary
-    $ kubectl --namespace=production apply -f k8s/services
+    kubectl --namespace=production apply -f k8s/production
+    ```
+
+    Output (do not copy):
+
+    ```output
+    deployment.extensions/gceme-backend-production created
+    deployment.extensions/gceme-frontend-production created
+    ```
+
+    ```shell
+    kubectl --namespace=production apply -f k8s/canary
+    ```
+
+    Output (do not copy):
+
+    ```output
+    deployment.extensions/gceme-backend-canary created
+    deployment.extensions/gceme-frontend-canary created
+
+    ```shell
+    kubectl --namespace=production apply -f k8s/services
+    ```
+
+    Output (do not copy):
+
+    ```output
+    service/gceme-backend created
+    service/gceme-frontend created
     ```
 
 1. Scale the production service:
 
     ```shell
-    $ kubectl --namespace=production scale deployment gceme-frontend-production --replicas=4
+    kubectl --namespace=production scale deployment gceme-frontend-production --replicas=4
     ```
 
-1. Retrieve the External IP for the production services: **This field may take a few minutes to appear as the load balancer is being provisioned**:
+    Output (do not copy):
+
+    ```output
+    deployment.extensions/gceme-frontend-production scaled
+    ```
+
+1. Retrieve the External IP for the production services:
+
+  **This field may take a few minutes to appear as the load balancer is being provisioned**
 
   ```shell
-  $ kubectl --namespace=production get service gceme-frontend
+  kubectl --namespace=production get service gceme-frontend
+  ```
+
+  Output (do not copy):
+
+  ```output
   NAME             TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
   gceme-frontend   LoadBalancer   10.35.254.91   35.196.48.78   80:31088/TCP   1m
   ```
 
 1. Confirm that both services are working by opening the frontend external IP in your browser
 
-1. Open a new Google Cloud Shell terminal by clicking the `+` button to the right of the current terminal's tab, and poll the production endpoint's `/version` URL. Leave this running in the second terminal so you can easily observe rolling updates in the next section:
+1. Open a new **Cloud Shell** terminal by clicking the `+` button to the right of the current terminal's tab, and poll the production endpoint's `/version` URL. Leave this running in the second terminal so you can easily observe rolling updates in the next section:
 
    ```shell
-   $ export FRONTEND_SERVICE_IP=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}"  --namespace=production services gceme-frontend)
-   $ while true; do curl http://$FRONTEND_SERVICE_IP/version; sleep 1;  done
+   export FRONTEND_SERVICE_IP=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}"  --namespace=production services gceme-frontend)
+   ```
+
+   ```shell
+   while true; do curl http://$FRONTEND_SERVICE_IP/version; sleep 1;  done
    ```
 
 1. Return to the first terminal
@@ -280,26 +406,26 @@ Here you'll create your own copy of the `gceme` sample app in [Cloud Source Repo
    **Be sure to replace _REPLACE_WITH_YOUR_PROJECT_ID_ with the name of your Google Cloud Platform project**
 
     ```shell
-    $ cd sample-app
-    $ git init
-    $ git config credential.helper gcloud.sh
-    $ gcloud source repos create gceme
-    $ git remote add origin https://source.developers.google.com/p/REPLACE_WITH_YOUR_PROJECT_ID/r/gceme
+    cd sample-app
+    git init
+    git config credential.helper gcloud.sh
+    gcloud source repos create gceme
+    git remote add origin https://source.developers.google.com/p/REPLACE_WITH_YOUR_PROJECT_ID/r/gceme
     ```
 
 1. Ensure git is able to identify you:
 
     ```shell
-    $ git config --global user.email "YOUR-EMAIL-ADDRESS"
-    $ git config --global user.name "YOUR-NAME"
+    git config --global user.email "YOUR-EMAIL-ADDRESS"
+    git config --global user.name "YOUR-NAME"
     ```
 
 1. Add, commit, and push all the files:
 
     ```shell
-    $ git add .
-    $ git commit -m "Initial commit"
-    $ git push origin master
+    git add .
+    git commit -m "Initial commit"
+    git push origin master
     ```
 
 ## Create a pipeline
@@ -308,11 +434,11 @@ You'll now use Jenkins to define and run a pipeline that will test, build, and d
 ### Phase 1: Add your service account credentials
 First we will need to configure our GCP credentials in order for Jenkins to be able to access our code repository
 
-1. In the Jenkins UI, Click “Credentials” on the left
-1. Click either of the “(global)” links (they both route to the same URL)
-1. Click “Add Credentials” on the left
-1. From the “Kind” dropdown, select “Google Service Account from metadata”
-1. Click “OK”
+1. In the **Jenkins UI**, Click **Credentials** on the left
+1. Click either of the **(global)** links (they both route to the same URL)
+1. Click **Add Credentials** on the left
+1. From the **Kind** dropdown, select `Google Service Account from metadata`
+1. Click **OK**
 
 You should now see 2 Global Credentials. Make a note of the name of second credentials as you will reference this in Phase 2:
 
@@ -332,7 +458,7 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 
 1. Click `Add Source` and choose `git`
 
-1. Paste the **HTTPS clone URL** of your `sample-app` repo on Cloud Source Repositories into the **Project Repository** field.
+1. Paste the **HTTPS clone URL** of your `gceme` repo on Cloud Source Repositories into the **Project Repository** field.
     It will look like: https://source.developers.google.com/p/REPLACE_WITH_YOUR_PROJECT_ID/r/gceme
 
 1. From the Credentials dropdown select the name of new created credentials from the Phase 1. It should have the format `PROJECT_ID service account`.
@@ -350,16 +476,22 @@ The first run of the job will fail until the project name is set properly in the
 ### Phase 3:  Modify Jenkinsfile, then build and test the app
 
 Create a branch for the canary environment called `canary`
-   
+
    ```shell
-    $ git checkout -b canary
+   git checkout -b canary
+   ```
+
+   Output (do not copy):
+
+   ```output
+   Switched to a new branch 'canary'
    ```
 
 The [`Jenkinsfile`](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is written using the Jenkins Workflow DSL (Groovy-based). It allows an entire build pipeline to be expressed in a single script that lives alongside your source code and supports powerful features like parallelization, stages, and user input.
 
 Modify your `Jenkinsfile` script so it contains the correct project name on line 2.
 
-**Be sure to replace _REPLACE_WITH_YOUR_PROJECT_ID_ on line 2 with your project name:**
+**Be sure to replace `REPLACE_WITH_YOUR_PROJECT_ID` on line 3 with your project name.**
 
 Don't commit the new `Jenkinsfile` just yet. You'll make one more change in the next section, then commit and push them together.
 
@@ -388,9 +520,21 @@ You can use the [labels](http://kubernetes.io/docs/user-guide/labels/) `env: pro
    //snip
    ```
 
-1. `git add Jenkinsfile html.go main.go`, then `git commit -m "Version 2"`, and finally `git push origin canary` your change.
+1. Push the _version 2_ changes to the repo:
 
-1. When your change has been pushed to the Git repository, navigate to your Jenkins job. Click the "Scan Multibranch Pipeline Now" button.
+   ```shell
+   git add Jenkinsfile html.go main.go
+   ```
+
+   ```shell
+   git commit -m "Version 2"
+   ```
+
+   ```shell
+   git push origin canary
+   ```
+
+1. When your change has been pushed to the Git repository, navigate to your Jenkins job. Click the **Scan Multibranch Pipeline Now** button.
 
   ![](docs/img/first-build.png)
 
@@ -418,9 +562,9 @@ You can use the [labels](http://kubernetes.io/docs/user-guide/labels/) `env: pro
 1. Once the change is deployed to canary, you can continue to roll it out to the rest of your users by creating a branch called `production` and pushing it to the Git server:
 
    ```shell
-    $ git checkout master
-    $ git merge canary
-    $ git push origin master
+    git checkout master
+    git merge canary
+    git push origin master
    ```
 1. In a minute or so you should see that the master job in the sample-app folder has been kicked off:
 
@@ -457,8 +601,8 @@ which authenticates itself with the Kubernetes API and proxies requests from you
 1. Create another branch and push it up to the Git server
 
    ```shell
-   $ git checkout -b new-feature
-   $ git push origin new-feature
+   git checkout -b new-feature
+   git push origin new-feature
    ```
 
 1. Open Jenkins in your web browser and navigate to the sample-app job. You should see that a new job called "new-feature" has been created and your environment is being created.
@@ -485,13 +629,13 @@ which authenticates itself with the Kubernetes API and proxies requests from you
 1. Open a new Google Cloud Shell terminal by clicking the `+` button to the right of the current terminal's tab, and start the proxy:
 
    ```shell
-   $ kubectl proxy
+   kubectl proxy
    ```
 
 1. Return to the original shell, and access your application via localhost:
 
    ```shell
-   $ curl http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
+   curl http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
    ```
 
 1. You can now push code to the `new-feature` branch in order to update your development environment.
@@ -499,24 +643,24 @@ which authenticates itself with the Kubernetes API and proxies requests from you
 1. Once you are done, merge your `new-feature ` branch back into the  `canary` branch to deploy that code to the canary environment:
 
    ```shell
-   $ git checkout canary
-   $ git merge new-feature
-   $ git push origin canary
+   git checkout canary
+   git merge new-feature
+   git push origin canary
    ```
 
 1. When you are confident that your code won't wreak havoc in production, merge from the `canary` branch to the `master` branch. Your code will be automatically rolled out in the production environment:
 
    ```shell
-   $ git checkout master
-   $ git merge canary
-   $ git push origin master
+   git checkout master
+   git merge canary
+   git push origin master
    ```
 
 1. When you are done with your development branch, delete it from the server and delete the environment in Kubernetes:
 
    ```shell
-   $ git push origin :new-feature
-   $ kubectl delete ns new-feature
+   git push origin :new-feature
+   kubectl delete ns new-feature
    ```
 
 ## Extra credit: deploy a breaking change, then roll back
