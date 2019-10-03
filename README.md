@@ -459,7 +459,7 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 
 1. Under 'Scan Multibranch Pipeline Triggers' section, check the 'Periodically if not otherwise run' box and se the 'Interval' value to 1 minute.
 
-![](docs/img/git-credentials.png
+![](docs/img/git-credentials.png)
 
 1. Click `Save`, leaving all other options with their defaults
 
