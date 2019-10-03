@@ -433,7 +433,7 @@ First we will need to configure our GCP credentials in order for Jenkins to be a
 1. From the **Kind** dropdown, select `Google Service Account from metadata`
 1. Click **OK**
 
-You should now see 1 Global Credentials. Make a note of the name of the credentials, as you will reference this in Phase 2:
+You should now see 1 global credential. Make a note of the name of the credential, as you will reference this in Phase 2:
 
 ![](docs/img/jenkins-credentials.png)
 
@@ -446,14 +446,14 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 
 1. Click the **New Item** link in the left nav
 
-1. For __item name__, use **sample-app**, choose the **Multibranch Pipeline** option, then click **OK**
+1. For **item name** use **sample-app**, choose the **Multibranch Pipeline** option, then click **OK**
 
 ![](docs/img/sample-app.png)
 
-1. Click `Add Source` and choose `git`
+1. Click **Add source** and choose **git**
 
 1. Paste the **HTTPS clone URL** of your `gceme` repo on Cloud Source Repositories into the **Project Repository** field.
-    It will look like: https://source.developers.google.com/p/REPLACE_WITH_YOUR_PROJECT_ID/r/gceme
+   It will look like: https://source.developers.google.com/p/[REPLACE_WITH_YOUR_PROJECT_ID]/r/gceme
 
 1. From the Credentials dropdown select the name of new created credentials from the Phase 1. It should have the format `PROJECT_ID service account`.
 
