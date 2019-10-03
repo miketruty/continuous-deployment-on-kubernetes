@@ -67,6 +67,8 @@ You'll use Google Container Engine to create and manage your Kubernetes cluster.
 gcloud container clusters create jenkins-cd \
 --num-nodes 2 \
 --machine-type n1-standard-2 \
+--metadata disable-legacy-endpoints=FALSE \
+--cluster-version 1.13 \
 --scopes "cloud-source-repos-ro,cloud-platform"
 ```
 
@@ -94,8 +96,6 @@ Output (do not copy):
 No resources found.
 ```
 
-You should see `No resources found.`
-
 ## Install Helm
 
 In this lab, you will use Helm to install Jenkins from the Charts repository. Helm is a package manager that makes it easy to configure and deploy Kubernetes applications.  Once you have Jenkins installed, you'll be able to set up your CI/CD pipleline.
@@ -103,13 +103,13 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
 1. Download and install the helm binary
 
     ```shell
-    wget https://storage.googleapis.com/kubernetes-helm/helm-v2.14.1-linux-amd64.tar.gz
+    wget https://storage.googleapis.com/kubernetes-helm/helm-v2.14.3-linux-amd64.tar.gz
     ```
 
 1. Unzip the file to your local system:
 
     ```shell
-    tar zxfv helm-v2.14.1-linux-amd64.tar.gz
+    tar zxfv helm-v2.14.3-linux-amd64.tar.gz
     cp linux-amd64/helm .
     ```
 
@@ -130,21 +130,13 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
 
     ```shell
     kubectl create serviceaccount tiller --namespace kube-system
-    ```
-
-    Output (do not copy):
-
-    ```output
-    serviceaccount/tiller created
-    ```
-
-    ```shell
     kubectl create clusterrolebinding tiller-admin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
     ```
 
     Output (do not copy):
 
     ```output
+    serviceaccount/tiller created
     clusterrolebinding.rbac.authorization.k8s.io/tiller-admin-binding created
     ```
 
@@ -157,7 +149,9 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
     Output (do not copy):
 
     ```output
+    ...
     Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
+    ...
     ```
 
     ```shell
@@ -173,7 +167,7 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
     Update Complete.
     ```
 
-1. Ensure Helm is properly installed by running the following command. You should see versions appear for both the server and the client of ```v2.14.1```:
+1. Ensure Helm is properly installed by running the following command. You should see versions appear for both the server and the client of ```v2.14.3```:
 
     ```shell
     ./helm version
@@ -182,8 +176,8 @@ In this lab, you will use Helm to install Jenkins from the Charts repository. He
     Output (do not copy):
 
     ```output
-    Client: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
-    Server: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
+    Client: &version.Version{SemVer:"v2.14.3", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
+    Server: &version.Version{SemVer:"v2.14.3", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
     ```
 
 ## Configure and Install Jenkins
@@ -192,7 +186,7 @@ You will use a custom [values file](https://github.com/kubernetes/helm/blob/mast
 1. Use the Helm CLI to deploy the chart with your configuration set.
 
     ```shell
-    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.2.2 --wait
+    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.7.3 --wait
     ```
 
 1. Once that command completes ensure the Jenkins pod goes to the `Running` state and the container is in the `READY` state:
@@ -345,6 +339,7 @@ You'll have two primary environments - [canary](http://martinfowler.com/bliki/Ca
     ```output
     deployment.extensions/gceme-backend-canary created
     deployment.extensions/gceme-frontend-canary created
+    ```
 
     ```shell
     kubectl --namespace=production apply -f k8s/services
@@ -435,12 +430,12 @@ You'll now use Jenkins to define and run a pipeline that will test, build, and d
 First we will need to configure our GCP credentials in order for Jenkins to be able to access our code repository
 
 1. In the **Jenkins UI**, Click **Credentials** on the left
-1. Click either of the **(global)** links (they both route to the same URL)
+1. Click the **(global)** link
 1. Click **Add Credentials** on the left
 1. From the **Kind** dropdown, select `Google Service Account from metadata`
 1. Click **OK**
 
-You should now see 2 Global Credentials. Make a note of the name of second credentials as you will reference this in Phase 2:
+You should now see 1 Global Credentials. Make a note of the name of the credentials, as you will reference this in Phase 2:
 
 ![](docs/img/jenkins-credentials.png)
 
