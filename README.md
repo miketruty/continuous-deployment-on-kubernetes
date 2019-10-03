@@ -65,14 +65,10 @@ You'll use Google Container Engine to create and manage your Kubernetes cluster.
 
 ```shell
 gcloud container clusters create jenkins-cd \
---num-nodes 2 \
---machine-type n1-standard-2 \
---metadata disable-legacy-endpoints=FALSE \
---cluster-version 1.13 \
---scopes ""
+  --cluster-version 1.12 \
+  --machine-type n1-standard-2 --num-nodes "2" \
+  --scopes "https://www.googleapis.com/auth/projecthosting","https://www.googleapis.com/auth/cloud-platform"
 ```
-
-`--scopes "cloud-source-repos-ro,cloud-platform"`
 
 Once that operation completes download the credentials for your cluster using the [gcloud CLI](https://cloud.google.com/sdk/):
 ```shell
@@ -462,6 +458,8 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 1. From the Credentials dropdown select the name of new created credentials from the Phase 1. It should have the format `PROJECT_ID service account`.
 
 1. Under 'Scan Multibranch Pipeline Triggers' section, check the 'Periodically if not otherwise run' box and se the 'Interval' value to 1 minute.
+
+![](docs/img/git-credentials.png
 
 1. Click `Save`, leaving all other options with their defaults
 
