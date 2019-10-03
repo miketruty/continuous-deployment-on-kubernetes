@@ -69,8 +69,10 @@ gcloud container clusters create jenkins-cd \
 --machine-type n1-standard-2 \
 --metadata disable-legacy-endpoints=FALSE \
 --cluster-version 1.13 \
---scopes "cloud-source-repos-ro,cloud-platform"
+--scopes ""
 ```
+
+`--scopes "cloud-source-repos-ro,cloud-platform"`
 
 Once that operation completes download the credentials for your cluster using the [gcloud CLI](https://cloud.google.com/sdk/):
 ```shell
@@ -439,7 +441,6 @@ You should now see 1 Global Credentials. Make a note of the name of the credenti
 
 ![](docs/img/jenkins-credentials.png)
 
-
 ### Phase 2: Create a job
 This lab uses [Jenkins Pipeline](https://jenkins.io/solutions/pipeline/) to define builds as groovy scripts.
 
@@ -449,7 +450,9 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 
 1. Click the **New Item** link in the left nav
 
-1. Name the project **sample-app**, choose the **Multibranch Pipeline** option, then click `OK`
+1. For __item name__, use **sample-app**, choose the **Multibranch Pipeline** option, then click **OK**
+
+![](docs/img/sample-app.png)
 
 1. Click `Add Source` and choose `git`
 
