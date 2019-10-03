@@ -184,7 +184,7 @@ You will use a custom [values file](https://github.com/kubernetes/helm/blob/mast
 1. Use the Helm CLI to deploy the chart with your configuration set.
 
     ```shell
-    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.7.3 --wait
+    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.2.2 --wait
     ```
 
 1. Once that command completes ensure the Jenkins pod goes to the `Running` state and the container is in the `READY` state:
@@ -455,17 +455,15 @@ Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (
 1. Paste the **HTTPS clone URL** of your `gceme` repo on Cloud Source Repositories into the **Project Repository** field.
    It will look like: https://source.developers.google.com/p/[REPLACE_WITH_YOUR_PROJECT_ID]/r/gceme
 
-1. From the Credentials dropdown select the name of new created credentials from the Phase 1. It should have the format `PROJECT_ID service account`.
+1. From the **Credentials** dropdown, select the name of the credential from Phase 1. It should have the format `PROJECT_ID service account`.
 
-1. Under 'Scan Multibranch Pipeline Triggers' section, check the 'Periodically if not otherwise run' box and se the 'Interval' value to 1 minute.
+1. Under **Scan Multibranch Pipeline Triggers** section, check the **Periodically if not otherwise run** box, then set the **Interval** value to `1 minute`.
 
 ![](docs/img/git-credentials.png)
 
-1. Click `Save`, leaving all other options with their defaults
+1. Scroll to the bottom, and click **Save**, leaving all other options with default values.
 
-  ![](docs/img/clone_url.png)
-
-A job entitled "Branch indexing" was kicked off to see identify the branches in your repository. If you refresh Jenkins you should see the `master` branch now has a job created for it.
+A "Branch indexing" job was kicked off to identify any branches in your repository. If you select from the top menu **Jenkins** > **sample-app**, you should see the `master` branch now has a job created for it.
 
 The first run of the job will fail until the project name is set properly in the next step.
 
