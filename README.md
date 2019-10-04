@@ -234,8 +234,8 @@ You will use a custom [values file](https://github.com/kubernetes/helm/blob/mast
     kubernetes         10.35.240.1    <none>        443/TCP     9h
     ```
 
-We are using the [Kubernetes Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Kubernetes+Plugin) so that our builder nodes will be automatically launched as necessary when the Jenkins master requests them.
-Upon completion of their work they will automatically be turned down and their resources added back to the clusters resource pool.
+This Jenkins configuration is using the [Kubernetes Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Kubernetes+Plugin), so that builder nodes will be automatically launched as necessary when the Jenkins master requests them.
+Upon completion of the work, the builder nodes will be automatically turned down, and their resources added back to the cluster's resource pool.
 
 Notice that this service exposes ports `8080` and `50000` for any pods that match the `selector`. This will expose the Jenkins web UI and builder/agent registration ports within the Kubernetes cluster.
 Additionally the `jenkins-ui` services is exposed using a ClusterIP so that it is not accessible from outside the cluster.
@@ -425,7 +425,7 @@ Here you'll create your own copy of the `gceme` sample app in [Cloud Source Repo
 You'll now use Jenkins to define and run a pipeline that will test, build, and deploy your copy of `gceme` to your Kubernetes cluster. You'll approach this in phases. Let's get started with the first.
 
 ### Phase 1: Add your service account credentials
-First we will need to configure our GCP credentials in order for Jenkins to be able to access our code repository
+First, you will need to configure GCP credentials in order for Jenkins to be able to access the code repository:
 
 1. In the **Jenkins UI**, Click **Credentials** on the left
 1. Click the **(global)** link
@@ -442,7 +442,7 @@ This lab uses [Jenkins Pipeline](https://jenkins.io/solutions/pipeline/) to defi
 
 Navigate to your Jenkins UI and follow these steps to configure a Pipeline job (hot tip: you can find the IP address of your Jenkins install with `kubectl get ingress --namespace jenkins`):
 
-1. Click the “Jenkins” link in the top left of the interface
+1. Click the **Jenkins** link in the top left toolbar, of the ui
 
 1. Click the **New Item** link in the left nav
 
