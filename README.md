@@ -38,41 +38,55 @@ and clone the lab code repository to it.
 
 1. Create a new Google Cloud Platform project: [https://console.developers.google.com/project](https://console.developers.google.com/project)
 
-1. Click the Google Cloud Shell icon in the top-right and wait for your shell to open:
+1. Click the Activate Cloud Shell icon in the top-right and wait for your shell to open.
 
-  ![](docs/img/cloud-shell.png)
+   ![](docs/img/cloud-shell.png)
 
-  ![](docs/img/cloud-shell-prompt.png)
+   > If you are prompted with a _Learn more_ message, click __Continue__ to
+   > finish opening the Cloud Shell.
 
-1. When the shell is open, set your default compute zone:
+1. When the shell is open, set your default compute zone and project:
 
-  ```shell
-  gcloud config set compute/zone us-east1-d
-  ```
+   ![](docs/img/cloud-shell-prompt.png)
+
+   Use the [gcloud CLI](https://cloud.google.com/sdk/).
+
+   ```shell
+   gcloud config set compute/zone us-east1-d
+
+   export GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project)
+   ```
+
+   Output (do not copy):
+
+   ```output
+   Updated property [compute/zone].
+   Your active configuration is: [cloudshell-...]
+   ```
 
 1. Clone the lab repository in your cloud shell, then `cd` into that dir:
 
-  ```shell
-  git clone https://github.com/GoogleCloudPlatform/continuous-deployment-on-kubernetes.git
-  ```
+   ```shell
+   git clone https://github.com/GoogleCloudPlatform/continuous-deployment-on-kubernetes.git
+   ```
 
-  Output (do not copy):
+   Output (do not copy):
 
-  ```output
-  Cloning into 'continuous-deployment-on-kubernetes'...
-  ...
-  ```
+   ```output
+   Cloning into 'continuous-deployment-on-kubernetes'...
+   ...
+   ```
 
-  ```shell
-  cd continuous-deployment-on-kubernetes
-  ```
+   ```shell
+   cd continuous-deployment-on-kubernetes
+   ```
 
 ## Create a Service Account with permissions
 
 1. Create a service account, on Google Cloud Platform (GCP).
 
-   Create a custom service account because it's the recommended way to avoid
-   unnecessary permissions in use in the cluster and Jenkins.
+   Create a new service account because it's the recommended way to avoid
+   using extra permissions in Jenkins and the cluster.
 
    ```shell
    gcloud iam service-accounts create jenkins-sa \
@@ -82,15 +96,20 @@ and clone the lab code repository to it.
    Output (do not copy):
 
    ```output
-   xxx
+   Created service account [jenkins-sa].
    ```
 
-1. Add required permissions using predefined roles.
+1. Add required permissions, to the service account, using predefined roles.
+
+   Most of these permissions are related to Jenkins use of _Cloud Build_, and
+   storing/retrieving build artifacts in _Cloud Storage_. Also, the
+   service account needs to enable the Jenkins agent to read from a repo
+   you will create in _Cloud Source Repositories (CSR)_.
 
    ```shell
    gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
        --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
-       --role "roles/editor"
+       --role "roles/viewer"
 
    gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
        --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
@@ -103,74 +122,90 @@ and clone the lab code repository to it.
    gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
        --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
        --role "roles/storage.objectAdmin"
+
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/cloudbuild.builds.editor"
+
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/container.developer"
    ```
 
-1. Download the service account credentials to a JSON key file.
+   You can check the permissions added using __IAM & admin__ in Cloud Console.
+
+   ![](docs/img/jenkins_sa_iam.png)
+
+1. Export the service account credentials to a JSON key file.
 
    ```shell
    gcloud iam service-accounts keys create ~/jenkins-sa-key.json \
        --iam-account "jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com"
    ```
 
+   Output (do not copy):
+
+   ```output
+   created key [...] of type [json] as [/home/.../jenkins-sa-key.json] for [jenkins-sa@myproject.aiam.gserviceaccount.com]
+   ```
+
+1. Download the JSON key file to your local machine.
+
+   Click __Download File__ from __More__ on the Cloud Shell toolbar:
+
+   ![](docs/img/download_file.png)
+
+1. Enter the __File path__ as `jenkins-sa-key.json` and click __Download__.
+
+   The file will be downloaded to your local machine, for use later.
 
 ## Create a Kubernetes Cluster
 
-You'll use Google Container Engine to create and manage your Kubernetes cluster.
-Provision the cluster with `gcloud`:
+1. Use Google Kubernetes Engine (GKE) to create and manage your Kubernetes
+   cluster.  Provision the cluster with `gcloud`:
 
-```shell
-gcloud container clusters create jenkins-cd \
-  --num-nodes 2 \
-  --machine-type n1-standard-2 \
-  --cluster-version 1.12 \
-  --scopes "cloud-platform","cloud-source-repos-ro"
-```
+   ```shell
+   gcloud container clusters create jenkins-cd \
+     --num-nodes 2 \
+     --machine-type n1-standard-2 \
+     --cluster-version 1.13 \
+     --service-account "jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com"
+   ```
 
-Once that operation completes download the credentials for your cluster using
-the [gcloud CLI](https://cloud.google.com/sdk/):
+   Output (do not copy):
 
-```shell
-gcloud container clusters get-credentials jenkins-cd
-```
+   ```output
+   NAME        LOCATION    MASTER_VERSION  MASTER_IP     MACHINE_TYPE  NODE_VERSION   NUM_NODES  STATUS
+   jenkins-cd  us-east1-d  1.13.10-gke.7   35.229.29.69  n1-standard-2 1.13.10-gke.7  2          RUNNING
+   ```
 
-Output (do not copy):
+1. Once that operation completes, retrieve the credentials for your cluster.
 
-```output
-Fetching cluster endpoint and auth data.
-kubeconfig entry generated for jenkins-cd.
-```
+   ```shell
+   gcloud container clusters get-credentials jenkins-cd
+   ```
 
-Confirm that the cluster is running and `kubectl` is working by listing pods:
+   Output (do not copy):
 
-```shell
-kubectl get pods
-```
+   ```output
+   Fetching cluster endpoint and auth data.
+   kubeconfig entry generated for jenkins-cd.
+   ```
 
-Output (do not copy):
+1. Confirm that the cluster is running and `kubectl` is working by listing pods:
 
-```output
-No resources found.
-```
+   > You would see an error if the cluster was not created, or you did not
+   > have permissions.
 
-## Install Helm
+   ```shell
+   kubectl get pods
+   ```
 
-In this lab, you will use Helm to install Jenkins from the Charts repository.
-Helm is a package manager that makes it easy to configure and deploy Kubernetes
-applications.  Once you have Jenkins installed, you'll be able to set up your
-CI/CD pipleline.
+   Output (do not copy):
 
-1. Download and install the helm binary
-
-    ```shell
-    wget https://storage.googleapis.com/kubernetes-helm/helm-v2.14.1-linux-amd64.tar.gz
-    ```
-
-1. Unzip the file to your local system:
-
-    ```shell
-    tar zxfv helm-v2.14.1-linux-amd64.tar.gz
-    cp linux-amd64/helm .
-    ```
+   ```output
+   No resources found.
+   ```
 
 1. Add yourself as a cluster administrator in the cluster's RBAC so that you can
    give Jenkins permissions in the cluster:
@@ -183,6 +218,26 @@ CI/CD pipleline.
 
     ```output
     clusterrolebinding.rbac.authorization.k8s.io/cluster-admin-binding created
+    ```
+
+## Install Helm
+
+In this lab, you will use Helm to install Jenkins with a stable _chart_.  Helm
+is a package manager that makes it easy to configure and deploy Kubernetes
+applications.  Once you have Jenkins installed, you'll be able to set up your
+CI/CD pipleline.
+
+1. Download and install the helm binary
+
+    ```shell
+    wget https://storage.googleapis.com/kubernetes-helm/helm-v2.14.3-linux-amd64.tar.gz
+    ```
+
+1. Unzip the file to your local system:
+
+    ```shell
+    tar zxfv helm-v2.14.3-linux-amd64.tar.gz
+    cp linux-amd64/helm .
     ```
 
 1. Grant Tiller, the server side of Helm, the cluster-admin role in your cluster:
@@ -214,7 +269,7 @@ CI/CD pipleline.
     ...
     ```
 
-1. Update your local repo to latest.
+1. Update your local repo with the latest charts.
 
     ```shell
     ./helm repo update
@@ -230,7 +285,7 @@ CI/CD pipleline.
     ```
 
 1. Ensure Helm is properly installed by running the following command. You
-   should see versions `v2.14.1` appear for both the server and the client:
+   should see versions `v2.14.3` appear for both the server and the client:
 
     ```shell
     ./helm version
@@ -239,24 +294,35 @@ CI/CD pipleline.
     Output (do not copy):
 
     ```output
-    Client: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
-    Server: &version.Version{SemVer:"v2.14.1", GitCommit:"5270352a09c7e8b6e8c9593002a73535276507c0", GitTreeState:"clean"}
+    Client: &version.Version{SemVer:"v2.14.3", GitCommit:"0e7f3b6637f7af8fcfddb3d2941fcc7cbebb0085", GitTreeState:"clean"}
+    Server: &version.Version{SemVer:"v2.14.3", GitCommit:"0e7f3b6637f7af8fcfddb3d2941fcc7cbebb0085", GitTreeState:"clean"}
     ```
+
+    > If you don't see the Server version immediately, wait a few seconds and
+    > try again.
 
 ## Configure and Install Jenkins
 
-You will use a custom [values file](https://github.com/kubernetes/helm/blob/master/docs/chart_template_guide/values_files.md)
+You will use a custom
+[values file](https://github.com/kubernetes/helm/blob/master/docs/chart_template_guide/values_files.md)
 to add the GCP specific plugin necessary to use service account credentials to
 reach your Cloud Source Repository.
 
 1. Use the Helm CLI to deploy the chart with your configuration set.
 
     ```shell
-    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.2.2 --wait
+    ./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.7.3 --wait
     ```
 
-1. Once that command completes ensure the Jenkins pod goes to the `Running`
-   state and the container is in the `READY` state:
+    Output (do not copy):
+
+    ```output
+    ...
+    For more information on running Jenkins on Kubernetes, visit:
+    https://cloud.google.com/solutions/jenkins-on-container-engine
+    ```
+
+1. The Jenkins pod __STATUS__ should change to `Running` when it's ready:
 
     ```shell
     kubectl get pods
@@ -303,17 +369,17 @@ reach your Cloud Source Repository.
     kubernetes         10.35.240.1    <none>        443/TCP     9h
     ```
 
-This Jenkins configuration is using the [Kubernetes Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Kubernetes+Plugin),
-so that builder nodes will be automatically launched as necessary when the
-Jenkins master requests them.  Upon completion of the work, the builder nodes
-will be automatically turned down, and their resources added back to the
-cluster's resource pool.
+    This Jenkins configuration is using the [Kubernetes Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Kubernetes+Plugin),
+    so that builder nodes will be automatically launched as necessary when the
+    Jenkins master requests them.  Upon completion of the work, the builder nodes
+    will be automatically turned down, and their resources added back to the
+    cluster's resource pool.
 
-Notice that this service exposes ports `8080` and `50000` for any pods that
-match the `selector`. This will expose the Jenkins web UI and builder/agent
-registration ports within the Kubernetes cluster.  Additionally the `jenkins-ui`
-services is exposed using a ClusterIP so that it is not accessible from outside
-the cluster.
+    Notice that this service exposes ports `8080` and `50000` for any pods that
+    match the `selector`. This will expose the Jenkins web UI and builder/agent
+    registration ports within the Kubernetes cluster.  Additionally the `jenkins-ui`
+    services is exposed using a ClusterIP so that it is not accessible from outside
+    the cluster.
 
 ## Connect to Jenkins
 
@@ -337,8 +403,7 @@ password.
 
 ### Your progress, and what's next
 
-You've got a Kubernetes cluster managed by Google Container Engine. You've
-deployed:
+You've got a Kubernetes cluster managed by GKE. You've deployed:
 
 * a Jenkins Deployment
 * a (non-public) service that exposes Jenkins to its agent containers
@@ -400,23 +465,23 @@ use Kubernetes to manage them.
 
 1. First change directories to the sample-app, back in __Cloud Shell__:
 
-  ```shell
-  cd sample-app
-  ```
+   ```shell
+   cd sample-app
+   ```
 
 1. Create the namespace for production:
 
-  ```shell
-  kubectl create ns production
-  ```
+   ```shell
+   kubectl create ns production
+   ```
 
-  Output (do not copy):
+   Output (do not copy):
+ 
+   ```output
+   namespace/production created
+   ```
 
-  ```output
-  namespace/production created
-  ```
-
-1. Create the production Deployments:
+1. Create the production Deployments for frontend and backend:
 
     ```shell
     kubectl --namespace=production apply -f k8s/production
@@ -429,7 +494,7 @@ use Kubernetes to manage them.
     deployment.extensions/gceme-frontend-production created
     ```
 
-1. Create the canary Deployments:
+1. Create the canary Deployments for frontend and backend:
 
     ```shell
     kubectl --namespace=production apply -f k8s/canary
@@ -442,7 +507,7 @@ use Kubernetes to manage them.
     deployment.extensions/gceme-frontend-canary created
     ```
 
-1. Create the Services:
+1. Create the Services for frontend and backend:
 
     ```shell
     kubectl --namespace=production apply -f k8s/services
@@ -455,7 +520,7 @@ use Kubernetes to manage them.
     service/gceme-frontend created
     ```
 
-1. Scale the production service:
+1. Scale the production, frontend service:
 
     ```shell
     kubectl --namespace=production scale deployment gceme-frontend-production --replicas=4
@@ -469,19 +534,19 @@ use Kubernetes to manage them.
 
 1. Retrieve the External IP for the production services:
 
-  **This field may take a few minutes to appear as the load balancer is being
-  provisioned**
-
-  ```shell
-  kubectl --namespace=production get service gceme-frontend
-  ```
-
-  Output (do not copy):
-
-  ```output
-  NAME             TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
-  gceme-frontend   LoadBalancer   10.35.254.91   35.196.48.78   80:31088/TCP   1m
-  ```
+   **This field may take a few minutes to appear as the load balancer is being
+   provisioned**
+ 
+   ```shell
+   kubectl --namespace=production get service gceme-frontend
+   ```
+ 
+   Output (do not copy):
+ 
+   ```output
+   NAME             TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+   gceme-frontend   LoadBalancer   10.35.254.91   35.196.48.78   80:31088/TCP   1m
+   ```
 
 1. Confirm that both services are working by opening the frontend external IP in
    your browser
@@ -739,7 +804,7 @@ the Git server:
    2.0.0
    ```
 
-You can look through the `Jenkinsfile` in the `sample-app` project directory, 
+You can look through the `Jenkinsfile` in the `sample-app` project directory,
 to see how the pipeline workflow is written.
 
 ### Phase 5: Deploy a development branch
@@ -844,8 +909,7 @@ Things to consider:
 ## Clean up
 
 Clean up is really easy, but also super important: if you don't follow these
-instructions, you will continue to be billed for the Google Container Engine
-cluster you created.
+instructions, you will continue to be billed for the GKE cluster you created.
 
 To clean up, navigate to the
 [Google Developers Console Project List](https://console.developers.google.com/project),
