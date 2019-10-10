@@ -4,7 +4,8 @@ gcloud container clusters create jenkins-cd \
         --machine-type n1-standard-2 \
         --num-nodes 2 \
         --network jenkins \
-        --scopes "https://www.googleapis.com/auth/projecthosting,storage-rw"
+        --scopes "https://www.googleapis.com/auth/projecthosting,storage-rw" \
+        --cluster-version 1.12
 gcloud container clusters list
 gcloud container clusters get-credentials jenkins-cd
 kubectl cluster-info
@@ -25,7 +26,7 @@ kubectl create clusterrolebinding tiller-admin-binding --clusterrole=cluster-adm
 # Give tiller a chance to start up
 until ./helm version; do sleep 10;done
 
-./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 0.16.6 --wait
+./helm install -n cd stable/jenkins -f jenkins/values.yaml --version 1.2.2 --wait
 
 for i in `seq 1 5`;do kubectl get pods; sleep 60;done
 
