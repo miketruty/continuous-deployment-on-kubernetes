@@ -358,11 +358,11 @@ reach your Cloud Source Repository.
     clusterrolebinding.rbac.authorization.k8s.io/jenkins-deploy created
     ```
 
-1. Run the following command to setup port forwarding to the Jenkins UI from the Cloud Shell
+1. Set up port forwarding to the Jenkins UI, from Cloud Shell:
 
     ```shell
-    export POD_NAME=$(kubectl get pods -l "app.kubernetes.io/component=jenkins-master" -o jsonpath="{.items[0].metadata.name}")
-    kubectl port-forward $POD_NAME 8080:8080 >> /dev/null &
+    export JENKINS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/component=jenkins-master" -o jsonpath="{.items[0].metadata.name}")
+    kubectl port-forward $JENKINS_POD_NAME 8080:8080 >> /dev/null &
     ```
 
 1. Now, check that the Jenkins Service was created properly:
@@ -562,6 +562,8 @@ use Kubernetes to manage them.
 1. Confirm that both services are working by opening the frontend `EXTERNAL-IP`
    in your browser
 
+   ![](docs/img/blue_gceme.png)
+
 1. Poll the production endpoint's `/version` URL.
 
    Open a new **Cloud Shell** terminal by clicking the `+` button to the right
@@ -569,7 +571,7 @@ use Kubernetes to manage them.
 
    ```shell
    export FRONTEND_SERVICE_IP=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}"  --namespace=production services gceme-frontend)
-   while true; do curl http://$FRONTEND_SERVICE_IP/version; sleep 1;  done
+   while true; do curl http://$FRONTEND_SERVICE_IP/version; sleep 3;  done
    ```
 
    Output (do not copy):
@@ -693,8 +695,7 @@ ingress --namespace jenkins`):
 
    ![](docs/img/git-credentials.png)
 
-1. Scroll to the bottom, and click **Save**, leaving all other options with
-   default values.
+1. Click **Save**, leaving all other options with default values.
 
    A _Branch indexing_ job was kicked off to identify any branches in your
    repository.
@@ -710,7 +711,7 @@ ingress --namespace jenkins`):
 
 ### Phase 3:  Modify Jenkinsfile, then build and test the app
 
-Create a branch for the canary environment called `canary`
+1. Create a branch for the canary environment called `canary`
 
    ```shell
    git checkout -b canary
@@ -722,20 +723,19 @@ Create a branch for the canary environment called `canary`
    Switched to a new branch 'canary'
    ```
 
-The [`Jenkinsfile`](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is
-written using the Jenkins Workflow DSL, which is Groovy-based. It allows an
-entire build pipeline to be expressed in a single script that lives alongside
-your source code and supports powerful features like parallelization, stages,
-and user input.
+   The [`Jenkinsfile`](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is
+   written using the Jenkins Workflow DSL, which is Groovy-based. It allows an
+   entire build pipeline to be expressed in a single script that lives alongside
+   your source code and supports powerful features like parallelization, stages,
+   and user input.
 
-Modify your `Jenkinsfile` script so it contains the correct value for the
-**PROJECT** environment variable.
+1. Update your `Jenkinsfile` script with the correct **PROJECT** environment value.
 
-**Be sure to replace `REPLACE_WITH_YOUR_PROJECT_ID` with your project name.**
+   **Be sure to replace `REPLACE_WITH_YOUR_PROJECT_ID` with your project name.**
 
-Save your changes, but don't commit the new `Jenkinsfile` change just yet.
-You'll make one more change in the next section, then commit and push them
-together.
+   Save your changes, but don't commit the new `Jenkinsfile` change just yet.
+   You'll make one more change in the next section, then commit and push them
+   together.
 
 ### Phase 4: Deploy a [canary release](http://martinfowler.com/bliki/CanaryRelease.html) to canary
 
@@ -788,7 +788,7 @@ each version individually.
 1. Revisit your sample-app in the Jenkins UI.
 
    Navigate back to your Jenkins `sample-app` job. Notice a canary pipeline
-   has been created.
+   job has been created.
 
    ![](docs/img/sample_app_master_canary.png)
 
@@ -917,29 +917,36 @@ the cluster without exposing your service to the internet.
 
 #### Access the development branch
 
-1. Open a third Cloud Shell terminal.
-
-   Click the `+` button to the right of the current terminal's tab, and start
-   the proxy:
+1. Set up port forwarding to the dev frontend, from Cloud Shell:
 
    ```shell
-   kubectl proxy
+   export DEV_POD_NAME=$(kubectl get pods -n new-feature -l "app=gceme,env=dev,role=frontend" -o jsonpath="{.items[0].metadata.name}")
+   kubectl port-forward -n new-feature $DEV_POD_NAME 8001:80 >> /dev/null &
    ```
 
-   Output (do not copy):
-
-   ```output
-   Starting to serve on 127.0.0.1:8001
-   ```
-
-1. Return to the first terminal, and access your application via localhost:
+1. Access your application via localhost:
 
    ```shell
    curl http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
    ```
 
-1. You can now push code to the `new-feature` branch in order to update your
-   development environment.
+   Output (do not copy):
+
+   ```output
+   <!doctype html>
+   <html>
+   ...
+   </div>
+   <div class="col s2">&nbsp;</div>
+   </div>
+   </div>
+   </html>
+   ```
+
+   Look through the response output for `"card orange"` that was changed earlier.
+
+1. You can now push code changes to the `new-feature` branch in order to update
+   your development environment.
 
 1. Once you are done, merge your `new-feature ` branch back into the  `canary`
    branch to deploy that code to the canary environment:
@@ -960,8 +967,8 @@ the cluster without exposing your service to the internet.
    git push origin master
    ```
 
-1. When you are done with your development branch, delete it from the server and
-   delete the environment in Kubernetes:
+1. When you are done with your development branch, delete it from Cloud
+   Source Repositories, then delete the environment in Kubernetes:
 
    ```shell
    git push origin :new-feature
@@ -988,6 +995,4 @@ instructions, you will continue to be billed for the GKE cluster you created.
 To clean up, navigate to the
 [Google Developers Console Project List](https://console.developers.google.com/project),
 choose the project you created for this lab, and delete it. That's it.
-
-   ![](docs/img/new_feature_created.png)
 

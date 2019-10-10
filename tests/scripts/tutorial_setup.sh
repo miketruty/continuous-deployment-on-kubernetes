@@ -2,7 +2,8 @@
 
 # This script automates the setup and execution of a tutorial to show
 # Jenkins, running on a GKE cluster. It uses Helm to install Jenkins
-# on the GKE cluster.
+# on the GKE cluster. It stops right when the first jobs are running
+# in case there are problems with plugins running jobs.
 
 set -o vi
 export EDITOR=vim

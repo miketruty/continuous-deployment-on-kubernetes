@@ -1,9 +1,0 @@
-Pictures/sa_creds_fromprivatekey.png
-
-Master fails: 
-
-ERROR: (gcloud.builds.submit) INVALID_ARGUMENT: invalid build: invalid image
-name "gcr.io/REPLACE_WITH_YOUR_PROJECT_ID/gceme:master.1" contains uppercase
-letters
-
-
