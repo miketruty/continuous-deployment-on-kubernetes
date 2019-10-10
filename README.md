@@ -45,22 +45,30 @@ and clone the lab code repository to it.
    > If you are prompted with a _Learn more_ message, click __Continue__ to
    > finish opening the Cloud Shell.
 
-1. When the shell is open, set your default compute zone and project:
+1. When the shell is open, use the [gcloud](https://cloud.google.com/sdk/)
+   command line interface tool to set your default compute zone:
 
    ![](docs/img/cloud-shell-prompt.png)
 
-   Use the [gcloud CLI](https://cloud.google.com/sdk/).
-
    ```shell
    gcloud config set compute/zone us-east1-d
-
-   export GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project)
    ```
 
    Output (do not copy):
 
    ```output
    Updated property [compute/zone].
+   ```
+
+1. Set an environment variable with your project:
+
+   ```shell
+   export GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project)
+   ```
+
+   Output (do not copy):
+
+   ```output
    Your active configuration is: [cloudshell-...]
    ```
 
@@ -136,7 +144,7 @@ and clone the lab code repository to it.
 
    ![](docs/img/jenkins_sa_iam.png)
 
-1. Export the service account credentials to a JSON key file.
+1. Export the service account credentials to a JSON key file in Cloud Shell:
 
    ```shell
    gcloud iam service-accounts keys create ~/jenkins-sa-key.json \
@@ -161,8 +169,10 @@ and clone the lab code repository to it.
 
 ## Create a Kubernetes Cluster
 
-1. Use Google Kubernetes Engine (GKE) to create and manage your Kubernetes
-   cluster.  Provision the cluster with `gcloud`:
+1. Provision the cluster with `gcloud`:
+
+   Use Google Kubernetes Engine (GKE) to create and manage your Kubernetes
+   cluster, named `jenkins-cd`. Use the _service account_ created earlier.
 
    ```shell
    gcloud container clusters create jenkins-cd \
@@ -194,9 +204,6 @@ and clone the lab code repository to it.
 
 1. Confirm that the cluster is running and `kubectl` is working by listing pods:
 
-   > You would see an error if the cluster was not created, or you did not
-   > have permissions.
-
    ```shell
    kubectl get pods
    ```
@@ -206,6 +213,9 @@ and clone the lab code repository to it.
    ```output
    No resources found.
    ```
+
+   > You would see an error if the cluster was not created, or you did not
+   > have permissions.
 
 1. Add yourself as a cluster administrator in the cluster's RBAC so that you can
    give Jenkins permissions in the cluster:
@@ -217,6 +227,7 @@ and clone the lab code repository to it.
     Output (do not copy):
 
     ```output
+    Your active configuration is: [cloudshell-...]
     clusterrolebinding.rbac.authorization.k8s.io/cluster-admin-binding created
     ```
 
@@ -476,7 +487,7 @@ use Kubernetes to manage them.
    ```
 
    Output (do not copy):
- 
+
    ```output
    namespace/production created
    ```
@@ -536,53 +547,65 @@ use Kubernetes to manage them.
 
    **This field may take a few minutes to appear as the load balancer is being
    provisioned**
- 
+
    ```shell
    kubectl --namespace=production get service gceme-frontend
    ```
- 
+
    Output (do not copy):
- 
+
    ```output
    NAME             TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
    gceme-frontend   LoadBalancer   10.35.254.91   35.196.48.78   80:31088/TCP   1m
    ```
 
-1. Confirm that both services are working by opening the frontend external IP in
-   your browser
+1. Confirm that both services are working by opening the frontend `EXTERNAL-IP`
+   in your browser
 
-1. Open a new **Cloud Shell** terminal by clicking the `+` button to the right
-   of the current terminal's tab, and poll the production endpoint's `/version`
-   URL. Leave this running in the second terminal so you can easily observe rolling
-   updates in the next section:
+1. Poll the production endpoint's `/version` URL.
+
+   Open a new **Cloud Shell** terminal by clicking the `+` button to the right
+   of the current terminal's tab.
 
    ```shell
    export FRONTEND_SERVICE_IP=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}"  --namespace=production services gceme-frontend)
-   ```
-
-   ```shell
    while true; do curl http://$FRONTEND_SERVICE_IP/version; sleep 1;  done
    ```
 
-1. Return to the first terminal
+   Output (do not copy):
+
+   ```output
+   1.0.0
+   1.0.0
+   1.0.0
+   ```
+
+   You should see that all requests are serviced by v1.0.0 of the application.
+
+   Leave this running in the second terminal so you can easily observe rolling
+   updates in the next section.
+
+1. Return to the first terminal/tab in Cloud Shell.
 
 ### Create a repository for the sample app source
 
 Here you'll create your own copy of the `gceme` sample app in
 [Cloud Source Repository](https://cloud.google.com/source-repositories/docs/).
 
-1. Change directories to `sample-app` of the repo you cloned previously, then
-   initialize the git repository.
+1. Initialize the git repository.
 
-   **Be sure to replace _REPLACE_WITH_YOUR_PROJECT_ID_ with the name of your
-   Google Cloud Platform project**
+   Make sure to work from the `sample-app` directory of the repo you cloned previously.
 
     ```shell
-    cd sample-app
     git init
     git config credential.helper gcloud.sh
     gcloud source repos create gceme
-    git remote add origin https://source.developers.google.com/p/REPLACE_WITH_YOUR_PROJECT_ID/r/gceme
+    ```
+
+1. Add a _git remote_ for the new repo in Cloud Source Repositories.
+
+    ```shell
+    git remote add origin https://source.developers.google.com/p/$GOOGLE_CLOUD_PROJECT/r/gceme
     ```
 
 1. Ensure git is able to identify you:
@@ -594,17 +617,24 @@ Here you'll create your own copy of the `gceme` sample app in
 
 1. Add, commit, and push all the files:
 
-    ```shell
-    git add .
-    git commit -m "Initial commit"
-    git push origin master
-    ```
+   ```shell
+   git add .
+   git commit -m "Initial commit"
+   git push origin master
+   ```
+
+   Output (do not copy):
+
+   ```output
+   To https://source.developers.google.com/p/myproject/r/gceme
+    * [new branch]      master -> master
+   ```
 
 ## Create a pipeline
 
-You'll now use Jenkins to define and run a pipeline that will test, build, and
-deploy your copy of `gceme` to your Kubernetes cluster. You'll approach this in
-phases. Let's get started with the first.
+You'll now use __Jenkins__ to define and run a pipeline that will test, build,
+and deploy your copy of `gceme` to your Kubernetes cluster. You'll approach this
+in phases. Let's get started with the first.
 
 ### Phase 1: Add your service account credentials
 
@@ -614,17 +644,25 @@ able to access the code repository:
 1. In the **Jenkins UI**, Click **Credentials** on the left
 1. Click the **(global)** link
 1. Click **Add Credentials** on the left
-1. From the **Kind** dropdown, select `Google Service Account from metadata`
+1. From the **Kind** dropdown, select `Google Service Account from private key`
+1. Enter the **Project Name** from your project
+1. Leave **JSON key** selected, and click **Choose File**.
+1. Select the `jenkins-sa-key.json` file downloaded earlier, then click
+   **Open**.
+
+   ![](docs/img/jenkins_creds_safromkey.png)
+
 1. Click **OK**
 
-You should now see 1 global credential. Make a note of the name of the credential, as you will reference this in Phase 2:
+You should now see 1 global credential. Make a note of the name of the
+credential, as you will reference this in Phase 2.
 
 ![](docs/img/jenkins-credentials.png)
 
 ### Phase 2: Create a job
 
 This lab uses [Jenkins Pipeline](https://jenkins.io/solutions/pipeline/) to
-define builds as groovy scripts.
+define builds as _groovy_ scripts.
 
 Navigate to your Jenkins UI and follow these steps to configure a Pipeline job
 (hot tip: you can find the IP address of your Jenkins install with `kubectl get
@@ -634,10 +672,10 @@ ingress --namespace jenkins`):
 
 1. Click the **New Item** link in the left nav
 
-1. For **item name** use **sample-app**, choose the **Multibranch Pipeline**
+1. For **item name** use `sample-app`, choose the **Multibranch Pipeline**
    option, then click **OK**
 
-![](docs/img/sample-app.png)
+   ![](docs/img/sample-app.png)
 
 1. Click **Add source** and choose **git**
 
@@ -651,19 +689,24 @@ ingress --namespace jenkins`):
 
 1. Under **Scan Multibranch Pipeline Triggers** section, check the
    **Periodically if not otherwise run** box, then set the **Interval** value to
-`1 minute`.
+   `1 minute`.
 
-![](docs/img/git-credentials.png)
+   ![](docs/img/git-credentials.png)
 
 1. Scroll to the bottom, and click **Save**, leaving all other options with
    default values.
 
-A "Branch indexing" job was kicked off to identify any branches in your
-repository. If you select from the top menu **Jenkins** > **sample-app**, you
-should see the `master` branch now has a job created for it.
+   A _Branch indexing_ job was kicked off to identify any branches in your
+   repository.
 
-The first run of the job will fail until the project name is set properly in the
-next step.
+1. Click **Jenkins** > **sample-app**, in the top menu.
+
+   You should see the `master` branch now has a job created for it.
+
+   The first run of the job will fail, until the _project name_ is set properly
+   in the `Jenkinsfile` next step.
+
+  ![](docs/img/first-build.png)
 
 ### Phase 3:  Modify Jenkinsfile, then build and test the app
 
@@ -680,16 +723,19 @@ Create a branch for the canary environment called `canary`
    ```
 
 The [`Jenkinsfile`](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is
-written using the Jenkins Workflow DSL (Groovy-based). It allows an entire build
-pipeline to be expressed in a single script that lives alongside your source
-code and supports powerful features like parallelization, stages, and user
-input.
+written using the Jenkins Workflow DSL, which is Groovy-based. It allows an
+entire build pipeline to be expressed in a single script that lives alongside
+your source code and supports powerful features like parallelization, stages,
+and user input.
 
-Modify your `Jenkinsfile` script so it contains the correct project name on line 2.
+Modify your `Jenkinsfile` script so it contains the correct value for the
+**PROJECT** environment variable.
 
-**Be sure to replace `REPLACE_WITH_YOUR_PROJECT_ID` on line 3 with your project name.**
+**Be sure to replace `REPLACE_WITH_YOUR_PROJECT_ID` with your project name.**
 
-Don't commit the new `Jenkinsfile` just yet. You'll make one more change in the next section, then commit and push them together.
+Save your changes, but don't commit the new `Jenkinsfile` change just yet.
+You'll make one more change in the next section, then commit and push them
+together.
 
 ### Phase 4: Deploy a [canary release](http://martinfowler.com/bliki/CanaryRelease.html) to canary
 
@@ -739,20 +785,25 @@ each version individually.
    git push origin canary
    ```
 
-1. When your change has been pushed to the Git repository, navigate to your
-   Jenkins job. Click the **Scan Multibranch Pipeline Now** button.
+1. Revisit your sample-app in the Jenkins UI.
 
-  ![](docs/img/first-build.png)
+   Navigate back to your Jenkins `sample-app` job. Notice a canary pipeline
+   has been created.
 
-1. Once the build is running, click the down arrow next to the build in the left
-   column and choose **Console Output**:
+   ![](docs/img/sample_app_master_canary.png)
 
-  ![](docs/img/console.png)
+1. Follow the canary build output.
 
-1. Track the output for a few minutes and watch for the `kubectl
-   --namespace=production apply...` to begin. When it starts, open the terminal
-   that's polling canary's `/version` URL and observe it start to change in some of
-   the requests:
+   * Click the **Canary** link.
+   * Click the **#1** link the **Build History** box, on the lower left.
+   * Click **Console Output** from the left-side menu.
+   * Scroll down to follow.
+
+1. Track the output for a few minutes.
+
+   When you see `Finished: SUCCESS`, open the Cloud Shell terminal that you
+   left polling `/version` of _canary_. Observe that some requests are now
+   handled by the _canary_ `2.0.0` version.
 
    ```
    1.0.0
@@ -767,29 +818,37 @@ each version individually.
    1.0.0
    ```
 
-   You have now rolled out that change to a subset of users.
+   You have now rolled out that change, version 2.0.0, to a **subset** of users.
 
-1. Once the change is deployed to canary, you can continue to roll it out to the
-   rest of your users by creating a branch called `production` and pushing it to
-the Git server:
+1. Continue the rollout, to the rest of your users.
+
+   Back in the other Cloud Shell terminal, create a branch called
+   `production`, then push it to the Git server.
 
    ```shell
     git checkout master
     git merge canary
     git push origin master
    ```
-1. In a minute or so you should see that the master job in the sample-app folder
-   has been kicked off:
 
-    ![](docs/img/production.png)
+1. Watch the pipelines in the Jenkins UI handle the change.
+
+   Within a minute or so, you should see a new job in the **Build Queue** and **Build Executor**.
+
+    ![](docs/img/master_build_executor.png)
 
 1. Clicking on the `master` link will show you the stages of your pipeline as
    well as pass/fail and timing characteristics.
 
-    ![](docs/img/production_pipeline.png)
+   You can see the failed master job #1, and the successful master job #2.
 
-1. Open the terminal that's polling canary's `/version` URL and observe that the
-   new version (2.0.0) has been rolled out and is serving all requests.
+   ![](docs/img/master_two_pipeline.png)
+
+1. Check the Cloud Shell terminal responses again.
+
+   In Cloud Shell, open the terminal polling canary's `/version` URL and observe
+   that the new version, `2.0.0`, has been rolled out and is serving all
+   requests.
 
    ```
    2.0.0
@@ -804,19 +863,20 @@ the Git server:
    2.0.0
    ```
 
-You can look through the `Jenkinsfile` in the `sample-app` project directory,
-to see how the pipeline workflow is written.
+If you want to understand the pipeline stages in greater detail, you can
+look through the `Jenkinsfile` in the `sample-app` project directory.
 
 ### Phase 5: Deploy a development branch
 
-Often times changes will not be so trivial that they can be pushed directly to
-the canary environment. In order to create a development environment from a long
-lived feature branch all you need to do is push it up to the Git server and let
-Jenkins deploy your environment. In this case you will not use a loadbalancer so
-you'll have to access your application using `kubectl proxy`, which
-authenticates itself with the Kubernetes API and proxies requests from your
-local machine to the service in the cluster without exposing your service to the
-internet.
+Oftentimes changes will not be so trivial that they can be pushed directly to
+the **canary** environment. In order to create a **development** environment,
+from a long lived feature branch, all you need to do is push it up to the Git
+server. Jenkins will automatically deploy your **development** environment.
+
+In this case you will not use a loadbalancer, so you'll have to access your
+application using `kubectl proxy`. This proxy authenticates itself with the
+Kubernetes API and proxies requests from your local machine to the service in
+the cluster without exposing your service to the internet.
 
 #### Deploy the development branch
 
@@ -827,38 +887,52 @@ internet.
    git push origin new-feature
    ```
 
-1. Open Jenkins in your web browser and navigate to the sample-app job. You
-   should see that a new job called "new-feature" has been created and your
-   environment is being created.
+1. Open Jenkins in your web browser and navigate back to sample-app.
+
+   You should see that a new job called `new-feature` has been created,
+   and this job is creating your new environment.
+
+   ![](docs/img/new_feature_job.png)
 
 1. Navigate to the console output of the first build of this new job by:
 
-  * Click the `new-feature` link in the job list.
-  * Click the `#1` link in the Build History list on the left of the page.
-  * Finally click the `Console Output` link in the left navigation.
+   * Click the **new-feature** link in the job list.
+   * Click the **#1** link in the Build History list on the left of the page.
+   * Finally click the **Console Output** link in the left menu.
 
-1. Scroll to the bottom of the console output of the job, and you will see
+1. Scroll to the bottom of the console output of the job to see
    instructions for accessing your environment:
 
    ```
-   deployment "gceme-frontend-dev" created
+   Successfully verified extensions/v1beta1/Deployment: gceme-frontend-dev
+   AvailableReplicas = 1, MinimumReplicas = 1
+
    [Pipeline] echo
    To access your environment run `kubectl proxy`
    [Pipeline] echo
-   Then access your service via http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
+   Then access your service via
+   http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
    [Pipeline] }
    ```
 
 #### Access the development branch
 
-1. Open a new Google Cloud Shell terminal by clicking the `+` button to the
-   right of the current terminal's tab, and start the proxy:
+1. Open a third Cloud Shell terminal.
+
+   Click the `+` button to the right of the current terminal's tab, and start
+   the proxy:
 
    ```shell
    kubectl proxy
    ```
 
-1. Return to the original shell, and access your application via localhost:
+   Output (do not copy):
+
+   ```output
+   Starting to serve on 127.0.0.1:8001
+   ```
+
+1. Return to the first terminal, and access your application via localhost:
 
    ```shell
    curl http://localhost:8001/api/v1/proxy/namespaces/new-feature/services/gceme-frontend:80/
@@ -914,3 +988,6 @@ instructions, you will continue to be billed for the GKE cluster you created.
 To clean up, navigate to the
 [Google Developers Console Project List](https://console.developers.google.com/project),
 choose the project you created for this lab, and delete it. That's it.
+
+   ![](docs/img/new_feature_created.png)
+
