@@ -4,15 +4,14 @@
 # Jenkins, running on a GKE cluster. It uses Helm to install Jenkins
 # on the GKE cluster.
 
-# TODO(truty): my personal setup.
 set -o vi
 export EDITOR=vim
-alias cls=clear
-alias dir="ls -Al --color=auto"
+
+GKE_ZONE=us-east1-d
 
 # Easy access to pinned versions.
-GKE_VERSION=1.12
-GKE_ZONE=us-east1-d
+# GKE_VERSION=1.12
+GKE_VERSION=1.13
 # HELM_VERSION=2.14.1
 HELM_VERSION=2.14.3
 # JENKINS_CHART_VERSION=1.2.2
@@ -22,13 +21,46 @@ JENKINS_CHART_VERSION=1.7.3
 git clone https://github.com/GoogleCloudPlatform/continuous-deployment-on-kubernetes.git
 cd continuous-deployment-on-kubernetes
 
+# Create a service account with proper roles. This is more secure and
+# preferred over passing scopes to cluster-create, or using the
+# compute engine default service account.
+gcloud iam service-accounts create jenkins-sa \
+    --display-name "jenkins-sa"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/viewer"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/source.reader"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/storage.admin"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/storage.objectAdmin"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/cloudbuild.builds.editor"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+    --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+    --role "roles/container.developer"
+
+gcloud iam service-accounts keys create ~/jenkins-sa-key.json \
+    --iam-account "jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com"
+
 # Set up the GKE cluster.
 gcloud config set compute/zone $GKE_ZONE
-gcloud beta container clusters create jenkins-cd \
-  --machine-type n1-standard-2 --num-nodes "2" \
+gcloud container clusters create jenkins-cd \
+  --num-nodes 2 \
+  --machine-type n1-standard-2 \
   --cluster-version $GKE_VERSION \
-  --workload-metadata-from-node "EXPOSED" \
-  --scopes "https://www.googleapis.com/auth/projecthosting","https://www.googleapis.com/auth/cloud-platform","https://www.googleapis.com/auth/source.read_only"
+  --service-account "jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com"
 gcloud container clusters get-credentials jenkins-cd
 kubectl get pods
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value account)

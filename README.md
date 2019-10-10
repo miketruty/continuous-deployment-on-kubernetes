@@ -67,6 +67,52 @@ and clone the lab code repository to it.
   cd continuous-deployment-on-kubernetes
   ```
 
+## Create a Service Account with permissions
+
+1. Create a service account, on Google Cloud Platform (GCP).
+
+   Create a custom service account because it's the recommended way to avoid
+   unnecessary permissions in use in the cluster and Jenkins.
+
+   ```shell
+   gcloud iam service-accounts create jenkins-sa \
+       --display-name "jenkins-sa"
+   ```
+
+   Output (do not copy):
+
+   ```output
+   xxx
+   ```
+
+1. Add required permissions using predefined roles.
+
+   ```shell
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/editor"
+
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/source.reader"
+
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/storage.admin"
+
+   gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+       --member "serviceAccount:jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+       --role "roles/storage.objectAdmin"
+   ```
+
+1. Download the service account credentials to a JSON key file.
+
+   ```shell
+   gcloud iam service-accounts keys create ~/jenkins-sa-key.json \
+       --iam-account "jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com"
+   ```
+
+
 ## Create a Kubernetes Cluster
 
 You'll use Google Container Engine to create and manage your Kubernetes cluster.
@@ -77,7 +123,7 @@ gcloud container clusters create jenkins-cd \
   --num-nodes 2 \
   --machine-type n1-standard-2 \
   --cluster-version 1.12 \
-  --scopes "https://www.googleapis.com/auth/projecthosting","https://www.googleapis.com/auth/cloud-platform"
+  --scopes "cloud-platform","cloud-source-repos-ro"
 ```
 
 Once that operation completes download the credentials for your cluster using
@@ -693,7 +739,8 @@ the Git server:
    2.0.0
    ```
 
-1. Look at the `Jenkinsfile` in the project to see how the workflow is written.
+You can look through the `Jenkinsfile` in the `sample-app` project directory, 
+to see how the pipeline workflow is written.
 
 ### Phase 5: Deploy a development branch
 

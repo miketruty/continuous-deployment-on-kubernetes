@@ -1,0 +1,33 @@
+gcloud beta iam service-accounts create jenkins-sa \
+    --description "For Jenkins agent access to csr" \
+    --display-name "jenkins-sa"
+
+Created service account [jenkins-sa].
+
+
+gcloud projects add-iam-policy-binding qwiklabs-gcp-e3663c8760df6dfe \
+    --member serviceAccount:jenkins-sa@qwiklabs-gcp-e3663c8760df6dfe.iam.gserviceaccount.com \
+    --role roles/editor --role roles/source.reader
+
+gcloud iam service-accounts keys create ~/jenkins-sa-key.json \
+    --iam-account jenkins-sa@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com
+
+
+Download jenkins-sa-key.json
+
+Kind: "Google Service Account from private key"
+Project Name: xxx
+JSON key: selected
+  __Choose File__
+  select file, __Open__
+  __OK__
+
+Pictures/sa_creds_fromprivatekey.png
+
+Master fails: 
+
+ERROR: (gcloud.builds.submit) INVALID_ARGUMENT: invalid build: invalid image
+name "gcr.io/REPLACE_WITH_YOUR_PROJECT_ID/gceme:master.1" contains uppercase
+letters
+
+
